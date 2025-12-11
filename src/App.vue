@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
 
+let incident_data = ref([]);
 let crime_url = ref('');
 let dialog_err = ref(false);
 let map = reactive(
@@ -72,6 +73,24 @@ onMounted(() => {
 function initializeCrimes() {
     // TODO: get code and neighborhood data
     //       get initial 1000 crimes
+    console.log(crime_url.value);
+    let options = {
+        Method: 'GET',
+    };
+    fetch(crime_url.value, options)
+    .then((response) => {
+        console.log(response);
+        return response.json();
+    })
+    .then((api_data) => {
+        console.log(api_data);
+        
+        incident_data.value = api_data;
+        console.log(incident_data.case_number);
+    })
+    .catch((err) => {
+        console.log(err);
+    })
 }
 
 // Function called when user presses 'OK' on dialog box
@@ -103,6 +122,13 @@ function closeDialog() {
             <div id="leafletmap" class="cell auto"></div>
         </div>
     </div>
+    <table>
+        <tbody>
+            <tr v-for="(item) in incident_data">
+                <td>{{ item.case_number }}</td>
+            </tr>
+        </tbody>
+    </table>
 </template>
 
 <style scoped>
