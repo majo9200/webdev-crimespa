@@ -3,6 +3,7 @@ import { reactive, ref, onMounted } from 'vue'
 
 let incident_data = ref([]);
 let crime_url = ref('');
+let neighborhood_names = ref([]);
 let dialog_err = ref(false);
 let map = reactive(
     {
@@ -67,6 +68,23 @@ onMounted(() => {
     });
 });
 
+// Function to get neighborhood names
+function getNeighboorhoodNames() {
+    let base_url = crime_url.value.split("/incidents"); //the host and port number will be located at base_url[0]
+    console.log(base_url[0] + '/neighborhoods');
+    fetch(base_url[0] + '/neighborhoods')
+    .then((response_neighborhood) => {
+        return response_neighborhood.json();
+    })
+    .then((neighborhood_data) => {
+        neighborhood_names.value = neighborhood_data;
+        //console.log(neighborhood_names.value);
+    })
+    .catch((err) => {
+        console.log(err);
+    })
+}
+
 
 // FUNCTIONS
 // Function called once user has entered REST API URL
@@ -83,10 +101,7 @@ function initializeCrimes() {
         return response.json();
     })
     .then((api_data) => {
-        console.log(api_data);
-        
         incident_data.value = api_data;
-        console.log(incident_data.case_number);
     })
     .catch((err) => {
         console.log(err);
@@ -100,6 +115,7 @@ function closeDialog() {
     if (crime_url.value !== '' && url_input.checkValidity()) {
         dialog_err.value = false;
         dialog.close();
+        getNeighboorhoodNames();
         initializeCrimes();
     }
     else {
@@ -125,7 +141,9 @@ function closeDialog() {
     <table>
         <tbody>
             <tr v-for="(item) in incident_data">
+                <td>{{ item.neighborhood_number }}</td>
                 <td>{{ item.case_number }}</td>
+                <td>{{ item.incident }}</td>
             </tr>
         </tbody>
     </table>
