@@ -68,6 +68,17 @@ onMounted(() => {
     });
 });
 
+// This function will add markers to the map
+function addMarkers() {
+    console.log(map.neighborhood_markers.length);
+    for(let i = 0; i < map.neighborhood_markers.length; i++){ //let locations in map.neighborhood_markers){
+        let long = map.neighborhood_markers[i].location[0];
+        let lat = map.neighborhood_markers[i].location[1];
+        map.neighborhood_markers[i].marker = L.marker([long, lat]).addTo(map.leaflet);
+        //console.log(map.neighborhood_markers[i].location[0]);
+    }
+}
+
 // Function to get neighborhood names
 function getNeighboorhoodNames() {
     let base_url = crime_url.value.split("/incidents"); //the host and port number will be located at base_url[0]
@@ -117,6 +128,7 @@ function closeDialog() {
         dialog.close();
         getNeighboorhoodNames();
         initializeCrimes();
+        addMarkers();
     }
     else {
         dialog_err.value = true;
