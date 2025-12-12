@@ -3,7 +3,7 @@ import { reactive, ref, onMounted } from 'vue'
 
 let incident_data = ref([]);
 let crime_url = ref('');
-let neighborhood_names = ref([]);
+let neighborhood_names = reactive([]);
 let dialog_err = ref(false);
 let map = reactive(
     {
@@ -68,14 +68,33 @@ onMounted(() => {
     });
 });
 
+// Will calculate the amount of crime that happens in each neighborhood, used in addMarkers()
+function crimeAmountPerNeighboorhood(incidents){
+    let x = 0;
+    console.log(map.neighborhood_markers.length);
+    for(let k = 0; k <= map.neighborhood_markers.length-1; k++){
+        map.neighborhood_markers[k].crimeAmount = 0;
+    }
+
+    for(let number of incidents.value){
+        let index = number.neighborhood_number;
+        for(let y = 1; y <= map.neighborhood_markers.length; y++){
+            if(index == y){
+                map.neighborhood_markers[y-1].crimeAmount+= 1;
+            }
+        }
+        x++;
+    }
+    console.log(map.neighborhood_markers[0].crimeAmount);
+}
+
 // This function will add markers to the map
 function addMarkers() {
-    console.log(map.neighborhood_markers.length);
+    console.log(map.neighborhood_markers[1].crimeAmount);
     for(let i = 0; i < map.neighborhood_markers.length; i++){ //let locations in map.neighborhood_markers){
-        let long = map.neighborhood_markers[i].location[0];
-        let lat = map.neighborhood_markers[i].location[1];
-        map.neighborhood_markers[i].marker = L.marker([long, lat]).addTo(map.leaflet);
-        //console.log(map.neighborhood_markers[i].location[0]);
+        let lat = map.neighborhood_markers[i].location[0];
+        let long = map.neighborhood_markers[i].location[1];
+        map.neighborhood_markers[i].marker = L.marker([lat, long]).addTo(map.leaflet).bindPopup(String(map.neighborhood_markers[i].crimeAmount));
     }
 }
 
@@ -103,16 +122,15 @@ function initializeCrimes() {
     // TODO: get code and neighborhood data
     //       get initial 1000 crimes
     console.log(crime_url.value);
-    let options = {
-        Method: 'GET',
-    };
-    fetch(crime_url.value, options)
+    fetch(crime_url.value)
     .then((response) => {
-        console.log(response);
+        //console.log(response);
         return response.json();
     })
     .then((api_data) => {
         incident_data.value = api_data;
+        //console.log(incident_data.values[i].neighborhood_number)
+        crimeAmountPerNeighboorhood(incident_data);
     })
     .catch((err) => {
         console.log(err);
@@ -128,7 +146,7 @@ function closeDialog() {
         dialog.close();
         getNeighboorhoodNames();
         initializeCrimes();
-        addMarkers();
+        setTimeout(addMarkers, 3000);
     }
     else {
         dialog_err.value = true;
