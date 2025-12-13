@@ -3,8 +3,9 @@ import { reactive, ref, onMounted } from 'vue'
 
 let incident_data = ref([]);
 let crime_url = ref('');
-let neighborhood_names = reactive([]);
+let neighborhood_names = ref([]);
 let dialog_err = ref(false);
+let search_location = ref('');
 let map = reactive(
     {
         leaflet: null,
@@ -70,22 +71,17 @@ onMounted(() => {
 
 // Will calculate the amount of crime that happens in each neighborhood, used in addMarkers()
 function crimeAmountPerNeighboorhood(incidents){
-    let x = 0;
     console.log(map.neighborhood_markers.length);
-    for(let k = 0; k <= map.neighborhood_markers.length-1; k++){
+    for(let k = 0; k < map.neighborhood_markers.length; k++){
         map.neighborhood_markers[k].crimeAmount = 0;
     }
 
     for(let number of incidents.value){
-        let index = number.neighborhood_number;
-        for(let y = 1; y <= map.neighborhood_markers.length; y++){
-            if(index == y){
-                map.neighborhood_markers[y-1].crimeAmount+= 1;
-            }
-        }
-        x++;
+        let index = number.neighborhood_number - 1;
+        map.neighborhood_markers[index].crimeAmount+= 1;
     }
     console.log(map.neighborhood_markers[0].crimeAmount);
+    addMarkers();
 }
 
 // This function will add markers to the map
@@ -100,9 +96,11 @@ function addMarkers() {
 
 // Function to get neighborhood names
 function getNeighboorhoodNames() {
+    /*
     let base_url = crime_url.value.split("/incidents"); //the host and port number will be located at base_url[0]
     console.log(base_url[0] + '/neighborhoods');
-    fetch(base_url[0] + '/neighborhoods')
+    */
+    fetch(crime_url.value + '/neighborhoods')
     .then((response_neighborhood) => {
         return response_neighborhood.json();
     })
@@ -121,10 +119,13 @@ function getNeighboorhoodNames() {
 function initializeCrimes() {
     // TODO: get code and neighborhood data
     //       get initial 1000 crimes
-    console.log(crime_url.value);
-    fetch(crime_url.value)
+    console.log(crime_url.value + '/incidents');
+    let options = {
+        method: 'GET',
+    };
+    fetch(crime_url.value + '/incidents', options)
     .then((response) => {
-        //console.log(response);
+        console.log(response);
         return response.json();
     })
     .then((api_data) => {
@@ -146,11 +147,24 @@ function closeDialog() {
         dialog.close();
         getNeighboorhoodNames();
         initializeCrimes();
-        setTimeout(addMarkers, 3000);
     }
     else {
         dialog_err.value = true;
     }
+}
+
+function remove_incident(incident) {
+    let options = {
+        method: 'DELETE',
+        body: JSON.stringify(incident)
+    };
+    fetch(crime_url.value + '/remove-incident', options)
+        .then( res => {
+            console.log(res);
+        })
+        .catch( err => {
+            console.log(err);
+        });
 }
 </script>
 
@@ -168,12 +182,30 @@ function closeDialog() {
             <div id="leafletmap" class="cell auto"></div>
         </div>
     </div>
+    <label>Search: </label> <input type="text" v-model="search_location"/> <button type="button" @click="repopulate_incidents">Go</button>
     <table>
+        <thead>
+          <tr>
+              <th>Case Number</th>
+              <th>Incident</th>
+              <th>Neighborhood Name</th>
+              <th>Block</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Delete</th>
+          </tr>
+        </thead>
         <tbody>
             <tr v-for="(item) in incident_data">
-                <td>{{ item.neighborhood_number }}</td>
                 <td>{{ item.case_number }}</td>
                 <td>{{ item.incident }}</td>
+                <td>{{ neighborhood_names.find(nb => nb.neighborhood_number === item.neighborhood_number).neighborhood_name }}</td>
+                <td>{{ item.block }}</td>
+                <td>{{ item.date }}</td>
+                <td>{{ item.time }}</td>
+                <td>
+                    <button type="button" @click="remove_incident(item)">Delete</button>
+                </td>
             </tr>
         </tbody>
     </table>
