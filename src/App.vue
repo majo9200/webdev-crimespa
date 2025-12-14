@@ -2,10 +2,12 @@
 import { reactive, ref, onMounted } from 'vue'
 
 let incident_data = ref([]);
+const visible_incidents = ref([])
 let crime_url = ref('');
 let neighborhood_names = ref([]);
 let dialog_err = ref(false);
 let search_location = ref('');
+
 let map = reactive(
     {
         leaflet: null,
@@ -41,10 +43,39 @@ let map = reactive(
     }
 );
 
+const MIN_LAT = 44.883658
+const MAX_LAT = 45.008206
+const MIN_LNG = -93.217977
+const MAX_LNG = -92.993787
+
+function clampLatLng(lat, lng) {
+  return [
+    Math.min(MAX_LAT, Math.max(MIN_LAT, lat)),
+    Math.min(MAX_LNG, Math.max(MIN_LNG, lng)),
+  ]
+}
+
+function isLatLngString(s) {
+  return /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(s)
+}
+
+
 // Vue callback for once <template> HTML has been added to web page
 onMounted(() => {
     // Create Leaflet map (set bounds and valied zoom levels)
     map.leaflet = L.map('leafletmap').setView([map.center.lat, map.center.lng], map.zoom);
+    map.leaflet.on('moveend', () => {
+        const c = map.leaflet.getCenter()
+        search_location.value = `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`
+    })
+
+    map.leaflet.on('moveend', () => {
+    const c = map.leaflet.getCenter()
+    search_location.value = `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)}`
+    updateVisibleIncidents()
+    })
+
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         minZoom: 11,
@@ -83,6 +114,26 @@ function crimeAmountPerNeighboorhood(incidents){
     console.log(map.neighborhood_markers[0].crimeAmount);
     addMarkers();
 }
+
+function updateVisibleIncidents() {
+  if (!map.leaflet) return
+
+  const bounds = map.leaflet.getBounds()
+
+  // Neighborhoods visible in current map viewport:
+  const visibleNeighborhoodNums = new Set()
+
+  map.neighborhood_markers.forEach((nm, idx) => {
+    if (bounds.contains(nm.location)) {
+      visibleNeighborhoodNums.add(idx + 1)
+    }
+  })
+
+  visible_incidents.value = incident_data.value.filter(inc =>
+    visibleNeighborhoodNums.has(Number(inc.neighborhood_number))
+  )
+}
+
 
 // This function will add markers to the map
 function addMarkers() {
@@ -136,7 +187,10 @@ async function repopulate_incidents() {
     lng = Number(data[0].lon)
   }
 
-  map.leaflet.setView([lat, lng], 14)
+    const [clat, clng] = clampLatLng(lat, lng)
+    map.leaflet.setView([clat, clng], Math.max(map.leaflet.getZoom(), 14))
+    search_location.value = `${clat.toFixed(5)}, ${clng.toFixed(5)}`
+
 }
 
 
@@ -156,6 +210,7 @@ function initializeCrimes() {
     })
     .then((api_data) => {
         incident_data.value = api_data;
+        updateVisibleIncidents()
         //console.log(incident_data.values[i].neighborhood_number)
         crimeAmountPerNeighboorhood(incident_data);
     })
@@ -222,7 +277,7 @@ function remove_incident(incident) {
           </tr>
         </thead>
         <tbody>
-            <tr v-for="(item) in incident_data">
+            <tr v-for="(item) in visible_incidents" :key="item.case_number">
                 <td>{{ item.case_number }}</td>
                 <td>{{ item.incident }}</td>
                 <td>{{ neighborhood_names.find(nb => nb.neighborhood_number === item.neighborhood_number).neighborhood_name }}</td>
