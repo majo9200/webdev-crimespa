@@ -113,6 +113,32 @@ function getNeighboorhoodNames() {
     })
 }
 
+async function repopulate_incidents() {
+  let lat, lng
+
+  if (/^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(search_location.value)) {
+    const parts = search_location.value.split(',')
+    lat = Number(parts[0])
+    lng = Number(parts[1])
+  }
+
+  else {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(search_location.value)}`
+    const res = await fetch(url)
+    const data = await res.json()
+
+    if (!data.length) {
+      alert('Location not found')
+      return
+    }
+
+    lat = Number(data[0].lat)
+    lng = Number(data[0].lon)
+  }
+
+  map.leaflet.setView([lat, lng], 14)
+}
+
 
 // FUNCTIONS
 // Function called once user has entered REST API URL
